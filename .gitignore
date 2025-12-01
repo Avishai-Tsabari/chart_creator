@@ -1,0 +1,41 @@
+# Virtual Environment
+venv/
+env/
+ENV/
+.venv/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# input files
+*.txt
+
+# but include tqqq.txt for example
+!tqqq.txt
+
+# Output files
+*.png
+
+# example script and color analyzer script
+example.py
+analyze_colors.py
+
