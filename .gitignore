@@ -29,6 +29,9 @@ Thumbs.db
 # input files
 *.txt
 
+# but include requirements.txt
+!requirements.txt
+
 # but include tqqq.txt for example
 !tqqq.txt
 
