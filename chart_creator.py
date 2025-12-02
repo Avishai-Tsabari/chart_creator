@@ -5,6 +5,8 @@ from matplotlib.patches import Rectangle
 from matplotlib.offsetbox import AnchoredOffsetbox, TextArea, HPacker
 import sys
 import os
+from datetime import datetime, timedelta
+import yfinance as yf
 
 def create_chart(data_file, years=1):
     # Colors
@@ -19,19 +21,64 @@ def create_chart(data_file, years=1):
     output_file = f"{base_name}_chart.png"
 
     # Load Data
-    # Assuming the format from tqqq.txt: "Date","Time","Open","High","Low","Close","Vol","OI"
-    try:
-        df = pd.read_csv(data_file)
-        # Strip quotes from column names if necessary (pandas usually handles this but good to be safe)
-        df.columns = [c.strip('"').strip() for c in df.columns]
+    # First, try to read from file. If file doesn't exist, download from yfinance
+    if not os.path.exists(data_file):
+        print(f"File {data_file} not found. Attempting to download data from yfinance...")
         
-        # Parse Date
-        df['Date'] = pd.to_datetime(df['Date'])
-        df = df.sort_values('Date')
+        # Extract ticker symbol from filename (e.g., "tqqq.txt" -> "TQQQ")
+        ticker = os.path.splitext(os.path.basename(data_file))[0].upper()
         
-    except Exception as e:
-        print(f"Error reading data file: {e}")
-        return
+        try:
+            # Download 2 years of data from today
+            end_date = datetime.now()
+            start_date = end_date - timedelta(days=2*365)
+            
+            print(f"Downloading {ticker} data from {start_date.date()} to {end_date.date()}...")
+            yf_data = yf.download(ticker, start=start_date.strftime('%Y-%m-%d'), end=end_date.strftime('%Y-%m-%d'))
+            
+            if yf_data.empty:
+                print(f"Error: No data found for ticker {ticker}")
+                return
+            
+            # Transform yfinance data to match expected format
+            # yfinance returns: Open, High, Low, Close, Adj Close, Volume (with Date as index)
+            # Handle MultiIndex columns if present (flatten to single level)
+            if isinstance(yf_data.columns, pd.MultiIndex):
+                yf_data.columns = yf_data.columns.droplevel(1)
+            
+            df = pd.DataFrame()
+            df['Date'] = pd.to_datetime(yf_data.index)
+            df['Time'] = '00:00:00'  # yfinance doesn't provide time, use default
+            df['Open'] = yf_data['Open'].values
+            df['High'] = yf_data['High'].values
+            df['Low'] = yf_data['Low'].values
+            df['Close'] = yf_data['Close'].values
+            df['Vol'] = yf_data['Volume'].values
+            df['OI'] = 0  # Open Interest not available from yfinance, set to 0
+            
+            # Sort by date to ensure chronological order
+            df = df.sort_values('Date')
+            
+            print(f"Successfully downloaded {len(df)} rows of data for {ticker}")
+            
+        except Exception as e:
+            print(f"Error downloading data from yfinance: {e}")
+            return
+    else:
+        # Load from file
+        # Assuming the format from tqqq.txt: "Date","Time","Open","High","Low","Close","Vol","OI"
+        try:
+            df = pd.read_csv(data_file)
+            # Strip quotes from column names if necessary (pandas usually handles this but good to be safe)
+            df.columns = [c.strip('"').strip() for c in df.columns]
+            
+            # Parse Date
+            df['Date'] = pd.to_datetime(df['Date'])
+            df = df.sort_values('Date')
+            
+        except Exception as e:
+            print(f"Error reading data file: {e}")
+            return
 
     lookback_window = 150
 
